@@ -1,8 +1,15 @@
-import {StyleSheet, Text, View, TouchableNativeFeedback} from 'react-native';
-import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableNativeFeedback,
+  ActivityIndicator,
+} from 'react-native';
+import React, {useState} from 'react';
 import {Background, FormInput} from '../components';
 import {useForm} from 'react-hook-form';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import axios from 'axios';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
 export default function Login({navigation}) {
   const {
@@ -11,10 +18,30 @@ export default function Login({navigation}) {
     formState: {errors},
   } = useForm();
 
-  const onSubmit = data => {
-    navigation.replace('Home');
-    console.log(data);
-  };
+  const [loading, setLoading] = useState(false);
+
+  async function submitSignIn(data) {
+    // console.log(data);
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        'https://todo-api-omega.vercel.app/api/v1/auth/login',
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      EncryptedStorage.setItem('user_credential', JSON.stringify(data));
+      setLoading(false);
+      // console.log(response.data);
+      navigation.replace('Home', {token: response.data.user.token});
+    } catch (error) {
+      setLoading(false);
+      console.log(error.response.data);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -55,9 +82,13 @@ export default function Login({navigation}) {
         <View>
           <TouchableNativeFeedback
             useForeground
-            onPress={handleSubmit(onSubmit)}>
+            onPress={handleSubmit(submitSignIn)}>
             <View style={styles.btnStyle}>
-              <Text style={styles.textBtn}>Masuk</Text>
+              {loading ? (
+                <ActivityIndicator color={'white'} />
+              ) : (
+                <Text style={styles.textBtn}>Masuk</Text>
+              )}
             </View>
           </TouchableNativeFeedback>
         </View>

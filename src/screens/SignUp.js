@@ -1,8 +1,17 @@
-import {StyleSheet, Text, View, TouchableNativeFeedback} from 'react-native';
-import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableNativeFeedback,
+  ActivityIndicator,
+  ToastAndroid,
+} from 'react-native';
+import React, {useState} from 'react';
 import {Background, FormInput} from '../components';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useForm} from 'react-hook-form';
+import axios from 'axios';
+import {CommonActions, NavigationRouteContext} from '@react-navigation/native';
 
 export default function SignUp({navigation}) {
   const {
@@ -11,13 +20,40 @@ export default function SignUp({navigation}) {
     formState: {errors},
   } = useForm();
 
-  const onSubmit = data => {
-    console.log(data);
-    navigation.reset({
-      routes: [{name: 'Home'}],
-      index: 0,
-    });
-  };
+  const [loading, setLoading] = useState(false);
+
+  async function submitSignUp(data) {
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        'https://todo-api-omega.vercel.app/api/v1/auth/register',
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      setLoading(false);
+      // console.log(response.data);
+      navigation.dispatch(
+        CommonActions.reset({
+          routes: [
+            // {name: 'Home'},
+            {
+              name: 'Home',
+              params: {token: response.data.user.token},
+            },
+          ],
+          index: 0,
+        }),
+      );
+    } catch (error) {
+      setLoading(false);
+      console.log(error.response.data);
+      ToastAndroid.show(error.response.data.message, ToastAndroid.SHORT);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -86,9 +122,13 @@ export default function SignUp({navigation}) {
         <View>
           <TouchableNativeFeedback
             useForeground
-            onPress={handleSubmit(onSubmit)}>
+            onPress={handleSubmit(submitSignUp)}>
             <View style={styles.btnStyle}>
-              <Text style={styles.textBtn}>Daftar</Text>
+              {loading ? (
+                <ActivityIndicator color={'white'} />
+              ) : (
+                <Text style={styles.textBtn}>Daftar</Text>
+              )}
             </View>
           </TouchableNativeFeedback>
         </View>

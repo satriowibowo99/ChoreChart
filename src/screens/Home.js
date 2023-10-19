@@ -5,84 +5,84 @@ import {
   StatusBar,
   TouchableOpacity,
   ScrollView,
+  Modal,
+  Alert,
 } from 'react-native';
-import React, {useState} from 'react';
-import {Background} from '../components';
+import React, {useState, useEffect} from 'react';
+import {Background, ModalAddTask, FormInput} from '../components';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CheckBox from '@react-native-community/checkbox';
+import {useForm} from 'react-hook-form';
+import EncryptedStorage from 'react-native-encrypted-storage';
+import axios from 'axios';
 
-export default function Home({navigation}) {
-  const dummyData = {
-    status: 'success',
-    data: {
-      todos: [
-        {
-          _id: '64ebf54a9402862420577c5c',
-          title: 'Kencan sama Ei 11',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5459402862420577c59',
-          title: 'Kencan sama Ei 10',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5419402862420577c56',
-          title: 'Kencan sama Ei 9',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf53a9402862420577c53',
-          title: 'Kencan sama Ei 8',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5369402862420577c50',
-          title: 'Kencan sama Ei 7',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5339402862420577c4d',
-          title: 'Kencan sama Ei 6',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf52f9402862420577c4a',
-          title: 'Kencan sama Ei 5',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf52b9402862420577c47',
-          title: 'Kencan sama Ei 4',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5279402862420577c44',
-          title: 'Kencan sama Ei 3',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-        {
-          _id: '64ebf5229402862420577c41',
-          title: 'Kencan sama Ei 2',
-          desc: 'Jangan lupa pake pengaman',
-          checked: false,
-        },
-      ],
-      page: 2,
-      total: 11,
-    },
+export default function Home({navigation, route}) {
+  // console.log(route.params.token);
+  const {
+    control,
+    handleSubmit,
+    formState: {errors},
+  } = useForm();
+
+  const onSubmit = data => {
+    console.log(data);
   };
 
   const [selectedIndex, setSelectedIndex] = useState(null);
+
+  const [visibleAdd, setVisibleAdd] = useState(false);
+  const [visibleEdit, setVisibleEdit] = useState(false);
+
+  const token = route.params.token;
+
+  const [getData, setGetData] = useState([]);
+  // console.log(getData);
+  async function getTasks() {
+    try {
+      const response = await axios.get(
+        'https://todo-api-omega.vercel.app/api/v1/todos',
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      // console.log(response.data);
+      setGetData(response.data.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  function confirmLogOut() {
+    Alert.alert(
+      'Apakah anda ingin LogOut ?',
+      'Anda akan keluar dari aplikasi',
+      [
+        {
+          text: 'Batal',
+        },
+        {
+          text: 'Keluar',
+          onPress: () => logOut(),
+        },
+      ],
+    );
+  }
+
+  async function logOut() {
+    try {
+      await EncryptedStorage.removeItem('user_credential');
+      navigation.replace('Login');
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  useEffect(() => {
+    getTasks();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -93,7 +93,7 @@ export default function Home({navigation}) {
           color={'white'}
           size={40}
           style={{transform: [{rotate: '180deg'}]}}
-          onPress={() => navigation.replace('Login')}
+          onPress={() => confirmLogOut()}
         />
 
         <View style={{marginLeft: 10, flex: 1}}>
@@ -105,7 +105,7 @@ export default function Home({navigation}) {
       </View>
 
       <ScrollView>
-        {dummyData.data.todos.map((item, index) => {
+        {getData.todos?.map((item, index) => {
           return (
             <TouchableOpacity
               key={item._id}
@@ -135,7 +135,12 @@ export default function Home({navigation}) {
 
                 <View>
                   <TouchableOpacity style={styles.btnEdit}>
-                    <Icon name={'pencil'} size={20} color={'white'} />
+                    <Icon
+                      name={'pencil'}
+                      size={20}
+                      color={'white'}
+                      onPress={() => setVisibleEdit(true)}
+                    />
                   </TouchableOpacity>
                   <View style={{height: 5}} />
                   <TouchableOpacity
@@ -154,7 +159,108 @@ export default function Home({navigation}) {
             </TouchableOpacity>
           );
         })}
+        <View style={{height: 100}} />
       </ScrollView>
+
+      <View style={styles.iconTask}>
+        <TouchableOpacity onPress={() => setVisibleAdd(true)}>
+          <Icon
+            name={'checkbox-marked-circle-plus-outline'}
+            color={'white'}
+            size={30}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <Modal transparent visible={visibleAdd} animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <View style={styles.modalHeader}>
+              <Icon
+                name={'checkbox-marked-circle-plus-outline'}
+                color={'white'}
+                size={25}
+              />
+              <Text style={{color: 'white'}}>Tambah Tugas</Text>
+              <Icon
+                name={'close'}
+                color={'white'}
+                size={25}
+                onPress={() => setVisibleAdd(false)}
+              />
+            </View>
+            <View style={styles.modalAddTitle}>
+              <FormInput
+                title={'Judul Tugas'}
+                control={control}
+                errors={errors}
+                placeholder={'masukkan judul...'}
+                name={'title'}
+                warning={'isi judul tugas dengan benar'}
+                iconName={'pencil'}
+              />
+              <View style={{marginTop: -20}} />
+              <FormInput
+                title={'Deskripsi Tugas'}
+                control={control}
+                errors={errors}
+                placeholder={'masukkan deskripsi...'}
+                name={'desc'}
+                warning={'isi deskripsi tugas dengan benar'}
+                iconName={'menu'}
+              />
+              <TouchableOpacity style={styles.btnAddTask}>
+                <Text style={styles.txtBtnAdd}>Tambah</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={visibleEdit} animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <View style={styles.modalHeader}>
+              <Icon
+                name={'checkbox-marked-circle-plus-outline'}
+                color={'white'}
+                size={25}
+              />
+              <Text style={{color: 'white'}}>Edit Tugas</Text>
+              <Icon
+                name={'close'}
+                color={'white'}
+                size={25}
+                onPress={() => setVisibleEdit(false)}
+              />
+            </View>
+            <View style={styles.modalAddTitle}>
+              <FormInput
+                title={'Judul Tugas'}
+                control={control}
+                errors={errors}
+                placeholder={'masukkan judul...'}
+                name={'title'}
+                warning={'isi judul tugas dengan benar'}
+                iconName={'pencil'}
+              />
+              <View style={{marginTop: -20}} />
+              <FormInput
+                title={'Deskripsi Tugas'}
+                control={control}
+                errors={errors}
+                placeholder={'masukkan deskripsi...'}
+                name={'desc'}
+                warning={'isi deskripsi tugas dengan benar'}
+                iconName={'menu'}
+              />
+              <TouchableOpacity style={styles.btnAddTask}>
+                <Text style={styles.txtBtnAdd}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -209,5 +315,50 @@ const styles = StyleSheet.create({
     width: '100%',
     textAlign: 'center',
     marginLeft: 20,
+  },
+  iconTask: {
+    backgroundColor: '#862772',
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 50 / 2,
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#00000099',
+  },
+  modalView: {
+    backgroundColor: '#402E6E',
+    width: '80%',
+    borderRadius: 10,
+    padding: 10,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  btnAddTask: {
+    backgroundColor: '#862772',
+    width: 150,
+    height: 50,
+    alignSelf: 'center',
+    borderRadius: 100 / 2,
+    elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  txtBtnAdd: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
